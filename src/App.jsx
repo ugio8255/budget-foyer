@@ -381,7 +381,77 @@ function OngletTicket({ onImport }) {
     </div>
   )
 }
+// ─── Graphique évolution mensuelle ───────────────────────────────────────────
 
+function GraphiqueEvolution({ depenses }) {
+  // Calcule les totaux par mois
+  const totauxParMois = {}
+  depenses.forEach(d => {
+    const mois = extraireMois(d.date)
+    if (mois) {
+      totauxParMois[mois] = (totauxParMois[mois] || 0) + d.montant
+    }
+  })
+
+  const mois = Object.keys(totauxParMois).sort((a, b) => {
+    const parse = m => new Date(m.replace(/(\w+)\s(\d+)/, '$2 $1'))
+    return parse(a) - parse(b)
+  }).slice(-6) // 6 derniers mois
+
+  if (mois.length === 0) return null
+
+  const max = Math.max(...mois.map(m => totauxParMois[m]))
+  const hauteurMax = 160
+
+  return (
+    <Card>
+      <h3 style={{ fontFamily: 'Lora', fontSize: 18, fontWeight: 600, marginBottom: 16 }}>
+        📈 Évolution mensuelle
+      </h3>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: hauteurMax + 40 }}>
+        {mois.map((m, i) => {
+          const total = totauxParMois[m]
+          const hauteur = Math.max((total / max) * hauteurMax, 8)
+          const pct = Math.round((total / max) * 100)
+          const couleur = pct >= 90 ? C.red : pct >= 70 ? C.orange : C.green
+          const label = m.split(' ')[0].slice(0, 3)
+          const annee = m.split(' ')[1]
+          const estDernier = i === mois.length - 1
+
+          return (
+            <div key={m} style={{
+              flex: 1, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: 4
+            }}>
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: couleur,
+                opacity: estDernier ? 1 : 0.7
+              }}>
+                {total < 1000 ? total.toFixed(0) : (total / 1000).toFixed(1) + 'k'}€
+              </span>
+              <div style={{
+                width: '100%', height: hauteur,
+                background: estDernier ? couleur : couleur + '66',
+                borderRadius: '6px 6px 0 0',
+                transition: 'height .4s ease',
+                position: 'relative',
+                boxShadow: estDernier ? `0 4px 12px ${couleur}44` : 'none'
+              }} />
+              <span style={{
+                fontSize: 11, fontWeight: estDernier ? 700 : 400,
+                color: estDernier ? C.ink : C.muted,
+                textAlign: 'center', lineHeight: 1.2
+              }}>
+                {label}<br />
+                <span style={{ fontSize: 10, color: C.muted }}>{annee}</span>
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
 // ─── Onglet Résumé ────────────────────────────────────────────────────────────
 
 function OngletResume({ depenses, plafond, setPlafond, moisFiltre, setMoisFiltre, moisDisponibles }) {
@@ -506,6 +576,7 @@ function OngletResume({ depenses, plafond, setPlafond, moisFiltre, setMoisFiltre
               </div>
             ))}
           </Card>
+          <GraphiqueEvolution depenses={depensesFiltrees} />
         </>
       )}
     </div>
