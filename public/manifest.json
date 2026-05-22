@@ -1,0 +1,11 @@
+{
+  "name": "Budget Foyer",
+  "short_name": "Budget",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "512x512", "type": "image/svg+xml" }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF7F2",
+  "theme_color": "#D97B3A"
+}
