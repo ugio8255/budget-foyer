@@ -287,7 +287,8 @@ function OngletTicket({ onImport }) {
         const prix = parseFloat(dernier.replace(',', '.'))
         if (prix > 0.05 && prix < 999 && /^\d/.test(dernier)) {
           const article = flat.slice(0, -1).join(' ').trim().replace(/^[‡*+#]\s*/, '')
-          if (article.length > 2 && !/TOTAL|CARTE|ESPECE|MERCI|TEL|RCS|SIRET/i.test(article)) {
+          const estCorrompu = /JFIF|ICC_PROFILE|mntrRGB|XYZ|acsp/.test(article) || (article.match(/[^\x20-\xFF]/g) || []).length > 3
+            if (!estCorrompu && article.length > 2 && !/TOTAL|CARTE|ESPECE|MERCI|TEL|RCS|SIRET/i.test(article)) {
             articles.push({
               id: Date.now() + Math.random(),
               date: dateTicket,
@@ -537,6 +538,13 @@ function OngletListe({ depenses, supprimer, moisFiltre, moisDisponibles, setMois
           {moisDisponibles.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
       </div>
+            <button onClick={() => {
+        const d = JSON.parse(localStorage.getItem('budget-foyer-depenses') || '[]')
+        const propres = d.filter(x => !x.article?.includes('JFIF') && !x.article?.includes('ICC_PROFILE') && !x.article?.includes('acsp') && !x.article?.includes('mntrRGB') && !x.article?.includes('XYZ') && (x.article?.match(/[^\x20-\xFF]/g) || []).length <= 3)
+        localStorage.setItem('budget-foyer-depenses', JSON.stringify(propres))
+        alert('Nettoyé ! ' + propres.length + ' articles conservés (' + (d.length - propres.length) + ' supprimés)')
+        window.location.reload()
+      }} style={{ padding: '8px 14px', fontSize: 13, background: C.redBg, color: C.red, border: 'none', borderRadius: 8, fontWeight: 600 }}>🧹 Nettoyer</button>
       {depensesFiltrees.length === 0 ? (
         <Card style={{ textAlign: 'center', padding: 48 }}><div style={{ fontSize: 48 }}>🗒️</div><p style={{ color: C.muted }}>Aucune dépense</p></Card>
       ) : jours.map(jour => (
