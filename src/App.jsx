@@ -295,7 +295,7 @@ function OngletTicket({ onImport }) {
             if (!fichier) return
             alert('Photo prise : ' + fichier.name + '\n\nUtilisez Google Photos pour extraire le texte, puis collez-le ici.')
           }} />
-          <Btn onClick={() => document.getElementById('camera-input')?.click()} style={{ width: '100%', marginBottom: 12, fontSize: 16, padding: '14px', background: '#4A90D9', color: '#fff' }}>📷 Photographier un ticket</Btn>
+                    <Btn onClick={() => window.open('google://lens', '_blank')} style={{ width: '100%', marginBottom: 12, fontSize: 16, padding: '14px', background: '#4A90D9', color: '#fff' }}>📷 Scanner avec Google Lens</Btn>
           <div style={{ textAlign: 'center', color: C.muted, marginBottom: 12 }}>— ou collez le texte —</div>
           <textarea value={texte} onChange={e => setTexte(e.target.value)} placeholder="Colle ici le texte du ticket…" rows={9} style={{ width: '100%', padding: 14, fontSize: 14, borderRadius: 12, border: `1.5px solid ${C.border}`, background: C.bg, outline: 'none', resize: 'vertical', color: C.ink, lineHeight: 1.6 }} />
           <Btn onClick={analyser} disabled={!texte.trim()} style={{ width: '100%', marginTop: 12, fontSize: 17, padding: '14px' }}>📋 Analyser</Btn>
