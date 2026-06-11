@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import Tesseract from 'tesseract.js'
 
 // ─── Palette & tokens ───────────────────────────────────────────────────────
 const C = {
@@ -255,65 +256,191 @@ function OngletTicket({ onImport }) {
   const [texte, setTexte] = useState('')
   const [apercu, setApercu] = useState(null)
   const [etape, setEtape] = useState(1)
+  const [scanning, setScanning] = useState(false)
+  const [progression, setProgression] = useState(0)
+  const inputRef = useRef(null)  // ← ajouter useRef au import React
 
-  const analyser = () => {
-    const propre = nettoyer(texte)
+  // ─── Analyse (accepte le texte en paramètre pour éviter le state async) ───
+  const analyserTexte = (t) => {
+    const src = typeof t === 'string' ? t : texte
+    const propre = nettoyer(src)
     const lignes = propre.split('\n')
     const articles = []
     let commercant = '', dateTicket = ''
-    for (const ligne of lignes.slice(0, 5)) { const l = ligne.trim(); if (l.length > 3 && !/[:\d]/.test(l.slice(0, 3)) && !l.startsWith('TEL') && !l.startsWith('#')) { commercant = l; break } }
-    for (const ligne of lignes) { const m = ligne.match(/(\d{2}[-/]\d{2}[-/]\d{2,4})/); if (m) { dateTicket = m[1].replace(/-/g, '/'); break } }
+
+    for (const ligne of lignes.slice(0, 5)) {
+      const l = ligne.trim()
+      if (l.length > 3 && !/[:\d]/.test(l.slice(0, 3)) && !l.startsWith('TEL') && !l.startsWith('#')) {
+        commercant = l; break
+      }
+    }
+    for (const ligne of lignes) {
+      const m = ligne.match(/(\d{2}[-/]\d{2}[-/]\d{2,4})/)
+      if (m) { dateTicket = m[1].replace(/-/g, '/'); break }
+    }
     if (!dateTicket) dateTicket = new Date().toLocaleDateString('fr-FR')
+
     for (const ligne of lignes) {
       const flat = ligne.trim().split(/\s+/)
       if (flat.length >= 2) {
-        const dernier = flat[flat.length - 1]; const prix = parseFloat(dernier.replace(',', '.'))
+        const dernier = flat[flat.length - 1]
+        const prix = parseFloat(dernier.replace(',', '.'))
         if (prix > 0.05 && prix < 999 && /^\d/.test(dernier)) {
           const article = flat.slice(0, -1).join(' ').trim().replace(/^[‡*+#]\s*/, '')
           if (article.length > 2 && !/TOTAL|CARTE|ESPECE|MERCI|TEL|RCS|SIRET/i.test(article)) {
-            articles.push({ id: Date.now() + Math.random(), date: dateTicket, montant: prix, article, commercant: commercant || 'Ticket', categorie: classerArticle(article), source: '🧾' })
+            articles.push({
+              id: Date.now() + Math.random(),
+              date: dateTicket,
+              montant: prix,
+              article,
+              commercant: commercant || 'Ticket',
+              categorie: classerArticle(article),
+              source: '🧾'
+            })
           }
         }
       }
     }
     setApercu({ articles, commercant, dateTicket })
-    setEtape(articles.length > 0 ? 2 : 2)
+    setEtape(2)
   }
 
-  const confirmer = () => { onImport(apercu.articles); setTexte(''); setApercu(null); setEtape(3); setTimeout(() => setEtape(1), 2500) }
+  // ─── OCR Tesseract ─────────────────────────────────────────────────────────
+  const scanner = async (fichier) => {
+    setScanning(true)
+    setProgression(0)
+    try {
+      const { data: { text } } = await Tesseract.recognize(
+        fichier,
+        'fra+eng',   // français + anglais (noms de marques)
+        {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              setProgression(Math.round(m.progress * 100))
+            }
+          }
+        }
+      )
+      setTexte(text)
+      setScanning(false)
+      analyserTexte(text)  // texte passé directement, pas depuis le state
+    } catch (err) {
+      setScanning(false)
+      alert('Erreur OCR : ' + err.message)
+    }
+  }
+
+  const confirmer = () => {
+    onImport(apercu.articles)
+    setTexte(''); setApercu(null); setEtape(3)
+    setTimeout(() => setEtape(1), 2500)
+  }
   const reset = () => { setTexte(''); setApercu(null); setEtape(1) }
 
-  if (etape === 3) return <Card style={{ textAlign: 'center', padding: 40 }}><div style={{ fontSize: 48 }}>✅</div><p style={{ fontWeight: 600, color: C.green, fontSize: 18 }}>Ticket importé !</p></Card>
+  // ─── Étape succès ──────────────────────────────────────────────────────────
+  if (etape === 3) return (
+    <Card style={{ textAlign: 'center', padding: 40 }}>
+      <div style={{ fontSize: 48 }}>✅</div>
+      <p style={{ fontWeight: 600, color: C.green, fontSize: 18 }}>Ticket importé !</p>
+    </Card>
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ textAlign: 'center' }}><h2 style={{ fontFamily: 'Lora', fontSize: 24 }}>🧾 Scanner un ticket</h2></div>
+      <div style={{ textAlign: 'center' }}>
+        <h2 style={{ fontFamily: 'Lora', fontSize: 24 }}>🧾 Scanner un ticket</h2>
+      </div>
+
       {etape === 1 ? (
         <Card>
-          <input type="file" id="camera-input" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={(e) => {
-            const fichier = e.target.files?.[0]
-            if (!fichier) return
-            alert('Photo prise : ' + fichier.name + '\n\nUtilisez Google Photos pour extraire le texte, puis collez-le ici.')
-          }} />
-                    <Btn onClick={() => window.open('google://lens', '_blank')} style={{ width: '100%', marginBottom: 12, fontSize: 16, padding: '14px', background: '#4A90D9', color: '#fff' }}>📷 Scanner avec Google Lens</Btn>
+          {/* Input caméra caché, déclenché par le bouton via ref */}
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const fichier = e.target.files?.[0]
+              if (fichier) scanner(fichier)
+              e.target.value = ''  // reset pour pouvoir rescanner le même fichier
+            }}
+          />
+
+          {/* Bouton photo */}
+          <Btn
+            onClick={() => inputRef.current?.click()}
+            disabled={scanning}
+            style={{ width: '100%', marginBottom: 12, fontSize: 16, padding: '14px', background: '#4A90D9', color: '#fff' }}
+          >
+            {scanning ? `⏳ Analyse en cours… ${progression}%` : '📷 Prendre une photo'}
+          </Btn>
+
+          {/* Barre de progression OCR */}
+          {scanning && (
+            <div style={{ background: C.border, borderRadius: 6, height: 6, marginBottom: 14, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${progression}%`,
+                background: C.accent,
+                transition: 'width 0.3s ease',
+                borderRadius: 6
+              }} />
+            </div>
+          )}
+
           <div style={{ textAlign: 'center', color: C.muted, marginBottom: 12 }}>— ou collez le texte —</div>
-          <textarea value={texte} onChange={e => setTexte(e.target.value)} placeholder="Colle ici le texte du ticket…" rows={9} style={{ width: '100%', padding: 14, fontSize: 14, borderRadius: 12, border: `1.5px solid ${C.border}`, background: C.bg, outline: 'none', resize: 'vertical', color: C.ink, lineHeight: 1.6 }} />
-          <Btn onClick={analyser} disabled={!texte.trim()} style={{ width: '100%', marginTop: 12, fontSize: 17, padding: '14px' }}>📋 Analyser</Btn>
+
+          <textarea
+            value={texte}
+            onChange={e => setTexte(e.target.value)}
+            placeholder="Colle ici le texte du ticket…"
+            rows={9}
+            style={{
+              width: '100%', padding: 14, fontSize: 14, borderRadius: 12,
+              border: `1.5px solid ${C.border}`, background: C.bg,
+              outline: 'none', resize: 'vertical', color: C.ink, lineHeight: 1.6
+            }}
+          />
+
+          <Btn
+            onClick={() => analyserTexte(texte)}
+            disabled={!texte.trim() || scanning}
+            style={{ width: '100%', marginTop: 12, fontSize: 17, padding: '14px' }}
+          >
+            📋 Analyser
+          </Btn>
         </Card>
       ) : (
         <Card>
           {apercu.articles.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '16px 0', color: C.muted }}><p style={{ fontWeight: 600 }}>Aucun article détecté</p><Btn onClick={reset} style={{ width: '100%', marginTop: 12 }}>← Réessayer</Btn></div>
+            <div style={{ textAlign: 'center', padding: '16px 0', color: C.muted }}>
+              <p style={{ fontWeight: 600 }}>Aucun article détecté</p>
+              <p style={{ fontSize: 13, marginTop: 8 }}>Essaie de corriger le texte manuellement</p>
+              <Btn onClick={reset} style={{ width: '100%', marginTop: 12 }}>← Réessayer</Btn>
+            </div>
           ) : (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div><p style={{ fontWeight: 700 }}>{apercu.commercant}</p><p style={{ color: C.muted, fontSize: 13 }}>{apercu.dateTicket} · {apercu.articles.length} articles</p></div>
-                <span style={{ fontFamily: 'Lora', fontSize: 22, fontWeight: 700, color: C.accent }}>{apercu.articles.reduce((s, a) => s + a.montant, 0).toFixed(2)} €</span>
+                <div>
+                  <p style={{ fontWeight: 700 }}>{apercu.commercant}</p>
+                  <p style={{ color: C.muted, fontSize: 13 }}>{apercu.dateTicket} · {apercu.articles.length} articles</p>
+                </div>
+                <span style={{ fontFamily: 'Lora', fontSize: 22, fontWeight: 700, color: C.accent }}>
+                  {apercu.articles.reduce((s, a) => s + a.montant, 0).toFixed(2)} €
+                </span>
               </div>
               <div style={{ maxHeight: 260, overflowY: 'auto', borderRadius: 10, border: `1px solid ${C.border}` }}>
                 {apercu.articles.map((a, i) => (
-                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px', borderBottom: i < apercu.articles.length - 1 ? `1px solid ${C.border}` : 'none', background: i % 2 === 0 ? C.bg : C.card }}>
-                    <div><span style={{ fontSize: 14, fontWeight: 500 }}>{a.article}</span><br /><span style={{ fontSize: 12, color: C.muted }}>{CATEGORIES_ICONES[a.categorie] || '📦'} {a.categorie}</span></div>
+                  <div key={a.id} style={{
+                    display: 'flex', justifyContent: 'space-between', padding: '9px 14px',
+                    borderBottom: i < apercu.articles.length - 1 ? `1px solid ${C.border}` : 'none',
+                    background: i % 2 === 0 ? C.bg : C.card
+                  }}>
+                    <div>
+                      <span style={{ fontSize: 14, fontWeight: 500 }}>{a.article}</span><br />
+                      <span style={{ fontSize: 12, color: C.muted }}>{CATEGORIES_ICONES[a.categorie] || '📦'} {a.categorie}</span>
+                    </div>
                     <span style={{ fontWeight: 700 }}>{a.montant.toFixed(2)} €</span>
                   </div>
                 ))}
