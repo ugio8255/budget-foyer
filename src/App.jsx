@@ -252,7 +252,56 @@ function OngletResume({ depenses, plafond, setPlafond, moisFiltre, setMoisFiltre
 }
 
 // ─── Onglet Ticket ────────────────────────────────────────────────────────────
+async function preprocessTicket(fichier) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(fichier)
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width * 2
+      canvas.height = img.height * 2
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const d = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      for (let i = 0; i < d.data.length; i += 4) {
+        const g = 0.299*d.data[i] + 0.587*d.data[i+1] + 0.114*d.data[i+2]
+        d.data[i] = d.data[i+1] = d.data[i+2] = g > 145 ? 255 : 0
+      }
+      ctx.putImageData(d, 0, 0)
+      canvas.toBlob(blob => { URL.revokeObjectURL(url); resolve(blob) }, 'image/png')
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(fichier) }
+    img.src = url
+  })
+}
+async function preprocessTicket(fichier) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(fichier)
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width * 2
+      canvas.height = img.height * 2
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const d = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      for (let i = 0; i < d.data.length; i += 4) {
+        const g = 0.299*d.data[i] + 0.587*d.data[i+1] + 0.114*d.data[i+2]
+        d.data[i] = d.data[i+1] = d.data[i+2] = g > 145 ? 255 : 0
+      }
+      ctx.putImageData(d, 0, 0)
+      canvas.toBlob(blob => { URL.revokeObjectURL(url); resolve(blob) }, 'image/png')
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(fichier) }
+    img.src = url
+  })
+}
 function OngletTicket({ onImport }) {
+  
   const [texte, setTexte] = useState('')
   const [apercu, setApercu] = useState(null)
   const [etape, setEtape] = useState(1)
@@ -288,7 +337,8 @@ function OngletTicket({ onImport }) {
         if (prix > 0.05 && prix < 999 && /^\d/.test(dernier)) {
           const article = flat.slice(0, -1).join(' ').trim().replace(/^[‡*+#]\s*/, '')
           const estCorrompu = /JFIF|ICC_PROFILE|mntrRGB|XYZ|acsp/.test(article) || (article.match(/[^\x20-\xFF]/g) || []).length > 3
-            if (!estCorrompu && article.length > 2 && !/TOTAL|CARTE|ESPECE|MERCI|TEL|RCS|SIRET/i.test(article)) {
+            const nbLettres = (article.match(/[a-zA-ZÀ-ÿ]/g) || []).length
+if (!estCorrompu && article.length > 2 && nbLettres >= 3 && !/TOTAL|CARTE|ESPECE|MERCI|TEL|RCS|SIRET/i.test(article)) {
             articles.push({
               id: Date.now() + Math.random(),
               date: dateTicket,
@@ -311,9 +361,10 @@ function OngletTicket({ onImport }) {
     setScanning(true)
     setProgression(0)
     try {
+            const imagePretraitee = await preprocessTicket(fichier)
       const { data: { text } } = await Tesseract.recognize(
-        fichier,
-        'fra+eng',   // français + anglais (noms de marques)
+        imagePretraitee,
+        'fra',
         {
           logger: m => {
             if (m.status === 'recognizing text') {
