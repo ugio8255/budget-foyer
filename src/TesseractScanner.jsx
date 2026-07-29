@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { createWorker } from 'tesseract.js'
+import { classerArticle } from './categories.js'
 
 export default function TesseractScanner({ onImport }) {
   const fileInputRef = useRef(null)
@@ -97,7 +98,7 @@ export default function TesseractScanner({ onImport }) {
       montant: i.price,
       article: i.name,
       commercant: 'Ticket',
-      categorie: 'À classer',
+      categorie: classerArticle(i.name),
       source: '🧾'
     }))
     onImport(articles)

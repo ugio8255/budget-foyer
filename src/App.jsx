@@ -11,20 +11,6 @@ const C = {
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap');`
 const globalStyle = `*{box-sizing:border-box;margin:0;padding:0}body{background:${C.bg};font-family:'DM Sans',sans-serif}input,select,textarea,button{font-family:inherit}button{cursor:pointer}`
 
-const classerArticle = (a) => {
-  const u = a.toUpperCase()
-  if (/VIANDE|POULET|BOEUF|PORC|POISSON|SAUMON|JAMBON/.test(u)) return 'Viandes/Poissons'
-  if (/MANGUE|POMME|BANANE|CERISE|KIWI|ORANGE|FRAISE|FRUIT/.test(u)) return 'Fruits'
-  if (/SALADE|TOMATE|CAROTTE|OIGNON|POIVRON|COURGETTE|LEGUME/.test(u)) return 'Légumes'
-  if (/LAIT|BEURRE|YAOURT|FROMAGE|CREME|OEUF/.test(u)) return 'Laitiers/Œufs'
-  if (/PAIN|BAGUETTE|CROISSANT|BRIOCHE/.test(u)) return 'Boulangerie'
-  if (/EAU|JUS|SODA|BIERE|VIN|BOISSON/.test(u)) return 'Boissons'
-  if (/GATEAU|CHOCOLAT|BONBON|BISCUIT/.test(u)) return 'Sucreries'
-  return 'Épicerie'
-}
-
-const nettoyer = (t) => t.split('\n').map(l => l.replace(/[^\x20-\x7E\xA0-\xFF\n]/g,' ').trim()).filter(l => l.length > 1).join('\n')
-
 const extraireMois = (d) => {
   const p = d.split('/')
   if (p.length < 2) return null
@@ -201,84 +187,6 @@ function OngletResume({ depenses, plafond, setPlafond, moisFiltre, setMoisFiltre
         </>
       ) : (
         <Card style={{ textAlign:'center', padding:48 }}><div style={{ fontSize:48 }}>📭</div><p style={{ color:C.muted }}>Aucune dépense</p></Card>
-      )}
-    </div>
-  )
-}
-
-// ─── Ticket ───────────────────────────────────────────────────────
-function OngletTicket({ onImport }) {
-  const [texte, setTexte] = useState('')
-  const [apercu, setApercu] = useState(null)
-  const [etape, setEtape] = useState(1)
-
-  const analyser = () => {
-    const propre = nettoyer(texte)
-    const lignes = propre.split('\n')
-    const articles = []
-    let commercant = '', dateTicket = ''
-    for (const ligne of lignes.slice(0, 5)) { const l = ligne.trim(); if (l.length > 3 && !/[:\d]/.test(l.slice(0, 3)) && !l.startsWith('TEL') && !l.startsWith('#')) { commercant = l; break } }
-    for (const ligne of lignes) { const m = ligne.match(/(\d{2}[-/]\d{2}[-/]\d{2,4})/); if (m) { dateTicket = m[1].replace(/-/g, '/'); break } }
-    if (!dateTicket) dateTicket = new Date().toLocaleDateString('fr-FR')
-    for (const ligne of lignes) {
-      const flat = ligne.trim().split(/\s+/)
-      if (flat.length >= 2) {
-        const dernier = flat[flat.length - 1]; const prix = parseFloat(dernier.replace(',', '.'))
-        if (prix > 0.05 && prix < 999 && /^\d/.test(dernier)) {
-          const article = flat.slice(0, -1).join(' ').trim().replace(/^[‡*+#]\s*/, '')
-          if (article.length > 2 && !/TOTAL|CARTE|ESPECE|MERCI|TEL|RCS|SIRET/i.test(article)) {
-            articles.push({ id: Date.now() + Math.random(), date: dateTicket, montant: prix, article, commercant: commercant || 'Ticket', categorie: classerArticle(article), source: '🧾' })
-          }
-        }
-      }
-    }
-    setApercu({ articles, commercant, dateTicket })
-    setEtape(articles.length > 0 ? 2 : 2)
-  }
-
-  const confirmer = () => { onImport(apercu.articles); setTexte(''); setApercu(null); setEtape(3); setTimeout(() => setEtape(1), 2500) }
-  const reset = () => { setTexte(''); setApercu(null); setEtape(1) }
-
-  if (etape === 3) return <Card style={{ textAlign:'center', padding:40 }}><div style={{ fontSize:48 }}>✅</div><p style={{ fontWeight:600, color:C.green, fontSize:18 }}>Ticket importé !</p></Card>
-
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-      <div style={{ textAlign:'center' }}><h2 style={{ fontFamily:'Lora', fontSize:24 }}>🧾 Ticket</h2>
-            <p style={{ color:C.muted, fontSize:13, marginBottom:12 }}>Scannez avec Google Lens, puis collez le texte</p></div>
-      {etape === 1 ? (
-        <Card>
-          <div style={{ display:'flex', gap:10, marginBottom:12 }}>
-                        <input type="file" id="ticket-photo" accept="image/*" capture="environment" style={{ display:'none' }} />
-            <Btn onClick={() => document.getElementById('ticket-photo')?.click()} style={{ flex:1, fontSize:15, padding:'14px', background:'#4285F4', color:'#fff' }}>📷 Photographier le ticket</Btn>
-          </div>
-          <textarea value={texte} onChange={e => setTexte(e.target.value)} placeholder="Colle ici le texte du ticket…" rows={8} style={{ width:'100%', padding:14, fontSize:14, borderRadius:12, border:`1.5px solid ${C.border}`, background:C.bg, outline:'none', resize:'vertical', color:C.ink }} />
-          <Btn onClick={analyser} disabled={!texte.trim()} style={{ width:'100%', marginTop:12, fontSize:17, padding:'14px' }}>📋 Analyser</Btn>
-        </Card>
-      ) : (
-        <Card>
-          {apercu.articles.length === 0 ? (
-            <div style={{ textAlign:'center' }}><p style={{ fontWeight:600 }}>Aucun article détecté</p><Btn onClick={reset} style={{ width:'100%', marginTop:12 }}>← Réessayer</Btn></div>
-          ) : (
-            <>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:12 }}>
-                <div><p style={{ fontWeight:700 }}>{apercu.commercant}</p><p style={{ color:C.muted, fontSize:13 }}>{apercu.dateTicket} · {apercu.articles.length} articles</p></div>
-                <span style={{ fontFamily:'Lora', fontSize:22, fontWeight:700, color:C.accent }}>{apercu.articles.reduce((s, a) => s + a.montant, 0).toFixed(2)} €</span>
-              </div>
-              <div style={{ maxHeight:260, overflowY:'auto', borderRadius:10, border:`1px solid ${C.border}` }}>
-                {apercu.articles.map((a, i) => (
-                  <div key={a.id} style={{ display:'flex', justifyContent:'space-between', padding:'9px 14px', borderBottom:i<apercu.articles.length-1?`1px solid ${C.border}`:'none', background:i%2===0?C.bg:C.card }}>
-                    <div><span style={{ fontSize:14, fontWeight:500 }}>{a.article}</span><br /><span style={{ fontSize:12, color:C.muted }}>{ICONES[a.categorie]||'📦'} {a.categorie}</span></div>
-                    <span style={{ fontWeight:700 }}>{a.montant.toFixed(2)} €</span>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display:'flex', gap:10, marginTop:14 }}>
-                <Btn onClick={reset} variant="secondary" style={{ flex:1 }}>← Modifier</Btn>
-                <Btn onClick={confirmer} style={{ flex:2 }}>✅ Importer</Btn>
-              </div>
-            </>
-          )}
-        </Card>
       )}
     </div>
   )
