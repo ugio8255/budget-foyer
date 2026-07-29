@@ -1,12 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import TesseractScanner from './TesseractScanner.jsx'
-
-const C = {
-  bg: '#FAF7F2', card: '#FFFFFF', ink: '#1C1A16', muted: '#8C8370',
-  border: '#E8E2D9', accent: '#D97B3A', accentBg: '#FDF0E6', green: '#3A8C5C',
-  greenBg: '#E8F5EE', red: '#C0392B', redBg: '#FDECEA', orange: '#E07B2A',
-  blue: '#2563EB', blueBg: '#EBF2FF', shadow: '0 2px 12px rgba(0,0,0,0.07)',
-}
+import TicketColle from './TicketColle.jsx'
+import { C } from './theme.js'
 
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap');`
 const globalStyle = `*{box-sizing:border-box;margin:0;padding:0}body{background:${C.bg};font-family:'DM Sans',sans-serif}input,select,textarea,button{font-family:inherit}button{cursor:pointer}`
@@ -331,7 +325,7 @@ export default function App() {
         </div>
         <div style={{ padding:'20px 16px', maxWidth:560, margin:'0 auto' }}>
           {onglet === 'resume' && <OngletResume depenses={depenses} plafond={plafond} setPlafond={setPlafond} moisFiltre={moisFiltre} setMoisFiltre={setMoisFiltre} moisDisponibles={moisDisponibles} />}
-          {onglet === 'ticket' && <TesseractScanner onImport={onImport} />}
+          {onglet === 'ticket' && <TicketColle onImport={onImport} />}
           {onglet === 'releve' && <OngletReleve onImport={onImport} />}
           {onglet === 'revenus' && <OngletRevenus depenses={depenses} onImport={onImport} />}
           {onglet === 'liste' && <OngletListe depenses={depenses} supprimer={supprimer} moisFiltre={moisFiltre} setMoisFiltre={setMoisFiltre} moisDisponibles={moisDisponibles} />}
