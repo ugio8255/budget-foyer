@@ -1,0 +1,37 @@
+# Dépendances (réinstallables avec « npm install »)
+node_modules/
+
+# Fichiers générés par la construction du site
+dist/
+dist-ssr/
+*.local
+
+# Fichiers cachés créés par macOS
+.DS_Store
+
+# Journaux d'erreurs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Cache Vite
+.vite/
+node_modules/.vite/
+
+# Variables d'environnement (clés API, mots de passe — ne jamais publier)
+.env
+.env.local
+.env.*.local
+
+# Réglages d'éditeurs
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
